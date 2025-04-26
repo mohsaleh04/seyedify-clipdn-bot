@@ -18,7 +18,7 @@ class ClipProcessor:
 	def process_youtube_clip(self) -> dict:
 		url = self.url.strip()
 		try:
-			process = s.Popen(['yt-dlp', '--list-formats', '--cookies-from-browser', url], stdout=s.PIPE, stderr=s.PIPE)
+			process = s.Popen(['yt-dlp', '--list-formats', url, '--cookies', '../cookies.txt'], stdout=s.PIPE, stderr=s.PIPE)
 			stdout, stderr = process.communicate()
 			formats_output = stdout.decode('utf-8')
 			logger.debug(formats_output)
@@ -85,7 +85,7 @@ class ClipProcessor:
 				audio_destination = os.getcwd() + '/audio_temp'
 				os.makedirs(audio_destination, exist_ok=True)
 				audio_filename = os.path.join(audio_destination, '%(title)s.%(ext)s')
-				s.call(['yt-dlp', '-x', '--audio-format', 'mp3', '-o', audio_filename, url])
+				s.call(['yt-dlp', '-x', '--audio-format', 'mp3', '-o', audio_filename, url, '--cookies', '../cookies.txt'])
 
 				# Locate the downloaded audio file
 				for root, _, files in os.walk(audio_destination):
