@@ -294,8 +294,8 @@ def handle_group_message(message):
 			f"Message received in group {message.chat.title} from {message.from_user.username or message.from_user.first_name}")
 
 		# Check for YouTube links
-		if is_from_seyed_ecosystem(message.chat.title):
-			bot.reply_to(message, "your chat is not part of the SEYED ecosystem.")
+		if not is_from_seyed_ecosystem(message.chat.title):
+			bot.reply_to(message, "Your chat is not part of the SEYED ecosystem.")
 			return
 
 		if is_youtube_link(message.text):
