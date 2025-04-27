@@ -3,6 +3,7 @@ import os
 import subprocess as s
 import time
 
+from instaloader import Instaloader
 from yt_dlp import YoutubeDL, DownloadError
 from yt_dlp.compat import shutil
 
@@ -11,32 +12,37 @@ from defaults import logger, LIMIT_SIZE
 
 class ClipProcessor:
 	url: str
+	L: Instaloader
 
 	def __init__(self, url):
 		self.url = url
+		self.L = Instaloader()
 
-	def process_youtube_clip(self) -> dict:
+	def process_youtube_clip(self, message_log_updater) -> dict:
 		url = self.url.strip()
+		status_log_header_text = "<b>وضعیت:</b>\n"
+		message_log_updater(status_log_header_text + "در حال دریافت فرمت های فیلم")
 		try:
 			process = s.Popen(['yt-dlp', '--list-formats', url], stdout=s.PIPE, stderr=s.PIPE)
 			stdout, stderr = process.communicate()
 			formats_output = stdout.decode('utf-8')
 			logger.debug(formats_output)
 		except Exception as e:
-			return {"status": "error", "msg": f"Error listing formats: {e}"}
+			return {"status": "error", "msg": f"ناتوانی در دریافت فرمت ها: {e}"}
 
 		# Extract video information
-		ydl_opts = {'quiet': True, 'no_warnings': True, }
+		ydl_opts = {'quiet': True, 'no_warnings': True}
 
 		try:
 			with YoutubeDL(ydl_opts) as ydl:
 				info = ydl.extract_info(url, download=False)
 				formats = info.get('formats', [])
 		except DownloadError as de:
-			return {"status": "error", "msg": f"Failed to download: {de}"}
+			return {"status": "error", "msg": f"ناتوانی در دانلود: {de}"}
 
 		###############
 
+		message_log_updater(status_log_header_text + "در حال انتخاب بهینه ترین فرمت فیلم")
 		selected_format = None
 		# For speedy downloading ... (audio & video both)
 		# for i, fmt in enumerate(formats):
@@ -67,10 +73,10 @@ class ClipProcessor:
 							selected_format = fmt
 							break
 					else:
-						return {"status": "error", "msg": "file size limit exceeded"}
+						return {"status": "error", "msg": "حجم فایل خیلی زیاده!"}
 
 		if selected_format is None:
-			return {"status": "error", "msg": "no suitable format found for download"}
+			return {"status": "error", "msg": "هیچ فرمت مناسبی برای دانلود وجود نداشت."}
 
 		selected_format_id = selected_format['format_id']
 		has_audio = selected_format.get('acodec') != 'none'
@@ -80,6 +86,8 @@ class ClipProcessor:
 		audio_downloaded = False
 		audio_path = None
 		if has_video and not has_audio:
+			message_log_updater(status_log_header_text + "در حال دانلود کانال صوتی فیلم ...")
+
 			logging.debug("Selected format has NO AUDIO. Attempting to download audio separately...")
 			try:
 				audio_destination = os.getcwd() + '/audio_temp'
@@ -97,16 +105,17 @@ class ClipProcessor:
 				if not audio_path or not os.path.exists(audio_path):
 					logging.error(
 						f"Error: Audio file not found in {audio_destination}. Please check if the file was downloaded correctly.")
-					return {"status": "error", "msg": f"Couldn't parse audio file"}
+					return {"status": "error", "msg": f"عدم توانایی تحلیل فایل صوتی"}
 
 				logging.debug("MP3 audio downloaded successfully.")
 				audio_downloaded = True
 			except Exception as err:
 				logging.error(f"Error downloading MP3 audio: {err}")
-				return {"status": "error", "msg": "couldn't download the audio"}
+				return {"status": "error", "msg": "ناتوانی در دانلود فایل صوتی"}
 
 		#################
 
+		message_log_updater(status_log_header_text + "در حال دانلود خودِ فیلم ...")
 		logger.info("Starting Video Download...")
 		time1 = int(time.time())
 
@@ -124,15 +133,18 @@ class ClipProcessor:
 				ydl.download([url])
 			logger.info("File downloaded")
 		except Exception as di:
-			return {"status": "error", "msg": f"Failed to download: {di}"}
+			return {"status": "error", "msg": f"ناتوانی در دانلود فیلم: {di}"}
 
 		time2 = int(time.time())
 		ftime = time2 - time1
 		logger.info(f"Time taken to download: {ftime} sec")
+		message_log_updater(status_log_header_text + f"دانلود فیلم {ftime} ثانیه طول کشید.")
+
 
 		# Merge audio and video if necessary
 		if has_video and not has_audio:
 			if audio_downloaded:
+				message_log_updater(status_log_header_text + "در حال ادغام سازی تصویر و صوت")
 				logging.debug("Merging audio and video...")
 				merged_path = os.path.join(destination, f"{info['title']}_merged.mp4")
 				try:
@@ -152,18 +164,19 @@ class ClipProcessor:
 						os.remove(audio_path)
 					else:
 						logger.error(f"Error on merging video and audio; ffmpeg stdout: {stdout}")
-						return {"status": "error", "msg": f"Error while merging audio and video: {stderr}"}
+						return {"status": "error", "msg": f"خطا در حین ادغام فیلم و صوت: {stderr}"}
 				except s.TimeoutExpired:
 					process.kill()
 					return {"status": "error",
-					        "msg": "The merging process timed out. Please check your files manually."}
+					        "msg": "فرایند ادغام سازی، بیش از حد طول کشید و عملیات لغو شد."}
 				except Exception as e:
-					return {"status": "error", "msg": f"Error while merging audio and video: {e}"}
+					return {"status": "error", "msg": f"خطا در حین ادغام فیلم و صوت: {e}"}
 			else:
-				return {"status": "error", "msg": f"Couldn't merge audio and video"}
+				return {"status": "error", "msg": f"نتوانست فایل صدا را دانلود و با فیلم ادغام کند!"}
 		else:
 			merged_path = video_path
 
+		message_log_updater(status_log_header_text + "در حال پاکسازی فایل های اضافی")
 		# Cleanup temporary files
 		temp_audio_dir = os.getcwd() + '/audio_temp'
 		if os.path.exists(temp_audio_dir):
@@ -171,8 +184,55 @@ class ClipProcessor:
 			logger.info("Temporary audio files cleaned up.")
 
 		logger.info("downloading operation ends up")
+		message_log_updater(status_log_header_text + "فرایند دانلود تمام شد؛ ✅\nدر حال آپلود فیلم... ")
 
 		if has_video and not has_audio:
-			return {"status": "success", "msg": None, "video_path": merged_path}
+			return {"status": "success", "msg": None, "video_path": merged_path, "image_path": None}
 		else:
-			return {"status": "success", "msg": None, "video_path": video_path}
+			return {"status": "success", "msg": None, "video_path": video_path, "image_path": None}
+
+	def process_instagram_clip(self, message_log_updater) -> dict:
+		url = self.url.strip().split("?")[0]
+		status_log_header_text = "<b>وضعیت:</b>\n"
+		message_log_updater(status_log_header_text + "در حال بررسی لینک فیلم ..")
+
+		if url.endswith("/"):
+			url = url[:-1]  # Deleting last slash
+		url_segments = url.split("/")
+		post_type = url_segments[-2]
+
+		if post_type not in ["reel", "p", "post", "r"]:
+			return {"status": "error", "msg": "لینک نامعتبره!"}
+
+		shortcode = url_segments[-1]
+
+		##########################
+
+		message_log_updater(status_log_header_text + "در حال دانلود فیلم ..")
+
+		try:
+			process = s.Popen(['instaloader', '--', f'-{shortcode}'], stdout=s.PIPE, stderr=s.PIPE)
+			stdout, stderr = process.communicate()
+			download_result = stdout.decode('utf-8')
+			downloaded_folder = download_result.split()
+			video_path = list(filter(lambda filename: filename.endswith(".mp4"), downloaded_folder))
+			if video_path:
+				video_path = video_path[0]
+			cover_image_path = list(filter(lambda filename: filename.endswith(".jpg"), downloaded_folder))
+			if cover_image_path:
+				cover_image_path = cover_image_path[0]
+		except Exception as e:
+			return {"status": "error", "msg": f"خطایی حین دانلود فیلم: {e}"}
+
+		message_log_updater(status_log_header_text + "فیلم دانلود شد؛ ✅\nدرحال بررسی و آپلود فیلم ...")
+
+		#######################
+
+		if video_path:
+			video_path = os.path.join(os.getcwd(), video_path)
+			return {"status": "success", "msg": None, "video_path": video_path, "image_path": None}
+		elif cover_image_path:
+			cover_image_path = os.path.join(os.getcwd(), cover_image_path)
+			return {"status": "success", "msg": None, "image_path": cover_image_path}
+		else:
+			return {"status": "error", "msg": "لینکی که فرستادید، هیچی توش نیس! 😥"}

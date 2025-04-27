@@ -1,14 +1,22 @@
 import logging
 import os
 import sys
-
 from dotenv import load_dotenv
 
+from enum import EnumType, Enum
+
 # Load environment variables
-# load_dotenv()
+load_dotenv()
+
+
+class LinkType(Enum):
+	YOUTUBE = 1
+	INSTAGRAM = 2
+
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 LIMIT_SIZE = int(os.getenv("FILE_SIZE_LIMIT_BYTES"))
+ADMINS_CHAT_ID = os.getenv("ADMINS_CHAT_ID").split(",")
 
 # YouTube URL patterns
 YOUTUBE_PATTERNS = [
@@ -27,6 +35,11 @@ YOUTUBE_PATTERNS = [
 	# YouTube playlist links
 	r'https?://(www\.)?youtube\.com/playlist\?list=[\w-]+(\S*)'
 ]
+# Instagram URL patterns
+INSTAGRAM_PATTERNS = [
+	r'https?://(www\.)?instagram\.com/reel/[\w-]+(\S*)',
+	r'https?://(www\.)?instagram\.com/p/[\w-]+(\S*)'
+]
 
 # Configure logging
 logging.basicConfig(
@@ -38,7 +51,6 @@ logging.basicConfig(
 	]
 )
 logger = logging.getLogger(__name__)
-
 
 if not BOT_TOKEN:
 	logger.error("No BOT_TOKEN found in .env file. Please add your bot token.")
