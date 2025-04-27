@@ -6,6 +6,7 @@ RUN apt-get update && \
         libavformat-dev \
         libavutil-dev \
         libswscale-dev \
+        vim \
         && apt-get clean \
         && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
