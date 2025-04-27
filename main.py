@@ -112,7 +112,7 @@ def process_social_link(message, link: str, link_type: str):
 			bot.reply_to(message, f"❌ خطایی حین آپلود یا حذف فایل: {str(eis)}")
 	elif result["status"] == "error":
 		logger.error(f"Error while processing file: {result['msg']}")
-		bot.reply_to(message, f"❌ خطایی حین پردازش فایل: {result["msg"]}")
+		bot.reply_to(message, f"❌ خطایی حین پردازش فایل: {result['msg']}")
 	bot.delete_message(chat_id=message.chat.id, message_id=replied_message.message_id)
 
 
