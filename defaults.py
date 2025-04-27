@@ -4,19 +4,8 @@ import sys
 
 from dotenv import load_dotenv
 
-# Configure logging
-logging.basicConfig(
-	level=logging.DEBUG,
-	format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-	handlers=[
-		logging.FileHandler("telegram_bot.log"),
-		logging.StreamHandler()
-	]
-)
-logger = logging.getLogger(__name__)
-
 # Load environment variables
-load_dotenv()
+# load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 LIMIT_SIZE = int(os.getenv("FILE_SIZE_LIMIT_BYTES"))
@@ -38,6 +27,18 @@ YOUTUBE_PATTERNS = [
 	# YouTube playlist links
 	r'https?://(www\.)?youtube\.com/playlist\?list=[\w-]+(\S*)'
 ]
+
+# Configure logging
+logging.basicConfig(
+	level=logging.DEBUG,
+	format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+	handlers=[
+		logging.FileHandler("telegram_bot.log"),
+		logging.StreamHandler()
+	]
+)
+logger = logging.getLogger(__name__)
+
 
 if not BOT_TOKEN:
 	logger.error("No BOT_TOKEN found in .env file. Please add your bot token.")
