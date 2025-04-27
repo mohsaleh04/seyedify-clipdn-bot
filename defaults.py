@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from enum import EnumType, Enum
 
 # Load environment variables
-load_dotenv()
+#load_dotenv()
 
 
 class LinkType(Enum):
